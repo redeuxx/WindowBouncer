@@ -1,0 +1,39 @@
+# BUILD OUTPUT
+bin/
+obj/
+publish/
+**/Generated/BuildInfo.g.cs
+
+
+# VISUAL STUDIO
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# RIDER / JETBRAINS
+.idea/
+*.iml
+
+# VSCODE
+.vscode/
+
+# DOTNET
+*.dll
+*.exe
+!**/Resources/*.ico
+*.pdb
+*.cache
+*.nupkg
+*.snupkg
+
+# LOGS
+*.log
+Logs/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+ehthumbs.db

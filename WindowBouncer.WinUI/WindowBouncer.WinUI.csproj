@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <RootNamespace>WindowBouncer</RootNamespace>
+    <AssemblyName>WindowBouncer</AssemblyName>
+    <UseWinUI>true</UseWinUI>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Resources\appicon.ico</ApplicationIcon>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <WindowsPackageType>None</WindowsPackageType>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
+    <Version>1.0.0</Version>
+    <Company>Vernon Wenberg</Company>
+    <Product>WindowBouncer</Product>
+    <Description>Close all open windows from the system tray or via hotkey.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.*" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.*" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
+    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Resources\appicon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <InnoSetupCompiler Condition="'$(InnoSetupCompiler)' == ''">C:\Program Files (x86)\Inno Setup 6\ISCC.exe</InnoSetupCompiler>
+  </PropertyGroup>
+
+  <Target Name="GenerateBuildInfo" BeforeTargets="CoreCompile">
+    <Exec Command="powershell -NoProfile -NonInteractive -Command &quot;[System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([System.DateTime]::UtcNow, 'Central Standard Time').ToString('yyyy-MM-dd HH:mm')&quot;" ConsoleToMSBuild="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="CstTime" />
+    </Exec>
+    <PropertyGroup>
+      <BuildDate>$(CstTime) CST</BuildDate>
+    </PropertyGroup>
+    <MakeDir Directories="$(MSBuildThisFileDirectory)Generated"/>
+    <WriteLinesToFile
+      File="$(MSBuildThisFileDirectory)Generated\BuildInfo.g.cs"
+      Lines="namespace WindowBouncer%3B internal static class BuildInfo { public const string BuildDate = &quot;$(BuildDate)&quot;%3B }"
+      Overwrite="true"/>
+  </Target>
+
+  <Target Name="CreateInstaller" AfterTargets="Publish" Condition="'$(PublishProfile)' == 'Release'">
+    <Warning Text="Skipping installer: Inno Setup not found at '$(InnoSetupCompiler)'. Install Inno Setup 6 or set the InnoSetupCompiler property." Condition="!Exists('$(InnoSetupCompiler)')" />
+    <Exec Command="&quot;$(InnoSetupCompiler)&quot; /DAppVersion=$(Version) &quot;$(MSBuildThisFileDirectory)..\installer\WindowBouncer.iss&quot;" Condition="Exists('$(InnoSetupCompiler)')" />
+  </Target>
+
+</Project>
