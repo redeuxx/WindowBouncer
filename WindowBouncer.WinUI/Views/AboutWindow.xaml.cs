@@ -11,14 +11,14 @@ namespace WindowBouncer.Views;
 
 public sealed partial class AboutWindow : Window
 {
-    internal static AboutWindow? Current { get; private set; }
+    internal static AboutWindow? OpenInstance { get; private set; }
 
     public AboutWindow()
     {
         InitializeComponent();
         WindowRegistry.Add(this);
-        Current = this;
-        Closed += (_, _) => Current = null;
+        OpenInstance = this;
+        Closed += (_, _) => OpenInstance = null;
 
         Title = "About WindowBouncer";
 

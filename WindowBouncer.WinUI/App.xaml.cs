@@ -35,7 +35,12 @@ public partial class App : Application
         var cliArgs = Environment.GetCommandLineArgs();
         var flags = ParseArgs(cliArgs);
 
-        _instanceMutex = new Mutex(initiallyOwned: true, "WindowBouncer_SingleInstance", out bool isNewInstance);
+#if DEBUG
+        const string mutexName = "WindowBouncer_SingleInstance_Debug";
+#else
+        const string mutexName = "WindowBouncer_SingleInstance";
+#endif
+        _instanceMutex = new Mutex(initiallyOwned: true, mutexName, out bool isNewInstance);
         if (!isNewInstance)
         {
             _instanceMutex.Dispose();
@@ -45,7 +50,11 @@ public partial class App : Application
 
         Settings.Load();
 
+#if DEBUG
+        if (false)
+#else
         if (Settings.Current.RunAsAdmin && !ElevationService.IsElevated())
+#endif
         {
             try { _instanceMutex?.ReleaseMutex(); } catch { }
             if (ElevationService.IsTaskRegistered())
