@@ -37,7 +37,7 @@ public sealed partial class AboutWindow : Window
 
         var dpi = NativeMethods.GetDpiForWindow(hwnd);
         var scale = dpi == 0 ? 1.0 : dpi / 96.0;
-        appWindow.Resize(new SizeInt32 { Width = (int)(380 * scale), Height = (int)(340 * scale) });
+        appWindow.Resize(new SizeInt32 { Width = (int)(380 * scale), Height = (int)(380 * scale) });
 
         if (Content is FrameworkElement root)
             root.RequestedTheme = ThemeService.CurrentIsDark ? ElementTheme.Dark : ElementTheme.Light;
