@@ -50,11 +50,8 @@ public partial class App : Application
 
         Settings.Load();
 
-#if DEBUG
-        if (false)
-#else
+#if !DEBUG
         if (Settings.Current.RunAsAdmin && !ElevationService.IsElevated())
-#endif
         {
             try { _instanceMutex?.ReleaseMutex(); } catch { }
             if (ElevationService.IsTaskRegistered())
@@ -67,6 +64,7 @@ public partial class App : Application
             Exit();
             return;
         }
+#endif
 
         Theme.Apply(Settings.Current.Theme);
         WindowService = new WindowService(Settings);
