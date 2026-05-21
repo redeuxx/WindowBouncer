@@ -114,6 +114,11 @@ public sealed partial class MainView : UserControl
 
     private void About_Click(object sender, RoutedEventArgs e)
     {
+        if (AboutWindow.Current is not null)
+        {
+            AboutWindow.Current.Activate();
+            return;
+        }
         var about = new AboutWindow();
         OwnedDialog.CenterOver(about, App.MainAppWindow);
         about.Activate();

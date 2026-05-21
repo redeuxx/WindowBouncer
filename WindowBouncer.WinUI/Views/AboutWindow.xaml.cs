@@ -11,10 +11,14 @@ namespace WindowBouncer.Views;
 
 public sealed partial class AboutWindow : Window
 {
+    internal static AboutWindow? Current { get; private set; }
+
     public AboutWindow()
     {
         InitializeComponent();
         WindowRegistry.Add(this);
+        Current = this;
+        Closed += (_, _) => Current = null;
 
         Title = "About WindowBouncer";
 
@@ -23,9 +27,17 @@ public sealed partial class AboutWindow : Window
         var appWindow = AppWindow.GetFromWindowId(windowId);
         appWindow.SetIcon(System.IO.Path.Combine(
             AppContext.BaseDirectory, "Resources", "appicon.ico"));
+
+        if (appWindow.Presenter is OverlappedPresenter op)
+        {
+            op.IsMinimizable = false;
+            op.IsMaximizable = false;
+            op.IsResizable = false;
+        }
+
         var dpi = NativeMethods.GetDpiForWindow(hwnd);
         var scale = dpi == 0 ? 1.0 : dpi / 96.0;
-        appWindow.Resize(new SizeInt32 { Width = (int)(380 * scale), Height = (int)(290 * scale) });
+        appWindow.Resize(new SizeInt32 { Width = (int)(380 * scale), Height = (int)(340 * scale) });
 
         if (Content is FrameworkElement root)
             root.RequestedTheme = ThemeService.CurrentIsDark ? ElementTheme.Dark : ElementTheme.Light;
