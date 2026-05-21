@@ -10,9 +10,15 @@
             <TextBlock x:Name="VersionText" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             <TextBlock x:Name="BuildDateText" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             <TextBlock TextWrapping="Wrap"
-                       Margin="0,8,0,16"
-                       Text="Close open windows from the system tray."/>
-            <Button HorizontalAlignment="Right" Width="80"
+                       Margin="0,8,0,0"
+                       Text="Close open windows from the system tray. You can also use the global hotkey to close all windows."/>
+            <HyperlinkButton Padding="0" Margin="0,8,0,0"
+                             NavigateUri="https://github.com/redeuxx/WindowBouncer"
+                             Content="View project on GitHub"/>
+            <HyperlinkButton Padding="0"
+                             NavigateUri="https://github.com/redeuxx/WindowBouncer/issues"
+                             Content="Submit suggestions/bug report"/>
+            <Button HorizontalAlignment="Right" Width="80" Margin="0,16,0,0"
                     Content="OK" Click="OK_Click"
                     Style="{ThemeResource AccentButtonStyle}"/>
         </StackPanel>
