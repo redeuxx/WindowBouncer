@@ -32,6 +32,12 @@ public sealed partial class SettingsWindow : Window
         catch { }
         appWindow.Resize(new SizeInt32 { Width = 540, Height = 560 });
 
+        if (appWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.IsMaximizable = false;
+            presenter.IsMinimizable = false;
+        }
+
         if (Content is FrameworkElement root)
             root.RequestedTheme = ThemeService.CurrentIsDark ? ElementTheme.Dark : ElementTheme.Light;
         ThemeService.ApplyTitleBar(hwnd);
