@@ -11,7 +11,7 @@
             <TextBlock x:Name="BuildDateText" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             <TextBlock TextWrapping="Wrap"
                        Margin="0,8,0,0"
-                       Text="Close open windows from the system tray. You can also use the global hotkey to close all windows."/>
+                       Text="Close open windows from the system tray or with a global hotkey."/>
             <HyperlinkButton Padding="0" Margin="0,8,0,0"
                              NavigateUri="https://github.com/redeuxx/WindowBouncer"
                              Content="View project on GitHub"/>
