@@ -36,6 +36,7 @@ public sealed partial class SettingsWindow : Window
         {
             presenter.IsMaximizable = false;
             presenter.IsMinimizable = false;
+            presenter.IsResizable = false;
         }
 
         if (Content is FrameworkElement root)
