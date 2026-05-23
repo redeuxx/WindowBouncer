@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Security;
 using System.Security.Principal;
+using System.Xml.Linq;
 
 namespace WindowBouncer.Services;
 
@@ -15,21 +16,38 @@ internal static class ElevationService
         return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
     }
 
+    // Returns true only when a task named TaskName exists AND its arguments reference
+    // this executable, preventing a malicious same-named task from being launched elevated.
     public static bool IsTaskRegistered()
     {
         try
         {
+            var exePath = Process.GetCurrentProcess().MainModule?.FileName;
+            if (string.IsNullOrEmpty(exePath))
+                return false;
+
             using var p = Process.Start(new ProcessStartInfo
             {
                 FileName = "schtasks.exe",
-                Arguments = $"/query /tn \"{TaskName}\"",
+                Arguments = $"/query /tn \"{TaskName}\" /xml ONE",
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             });
-            p?.WaitForExit();
-            return p?.ExitCode == 0;
+
+            if (p is null) return false;
+            var xml = p.StandardOutput.ReadToEnd();
+            p.WaitForExit();
+
+            if (p.ExitCode != 0 || string.IsNullOrWhiteSpace(xml))
+                return false;
+
+            XNamespace ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
+            var doc = XDocument.Parse(xml);
+            var arguments = doc.Descendants(ns + "Arguments").FirstOrDefault()?.Value ?? string.Empty;
+
+            return arguments.Contains(exePath, StringComparison.OrdinalIgnoreCase);
         }
         catch { return false; }
     }
