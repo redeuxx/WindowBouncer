@@ -22,6 +22,9 @@ public sealed class WindowService(SettingsService settings)
 
     public async Task<bool> CloseWindowAsync(WindowInfo window)
     {
+        if (!OwnershipValid(window.Handle, window.ProcessId))
+            return false;
+
         NativeMethods.PostMessage(window.Handle, NativeMethods.WM_CLOSE, 0, 0);
 
         var deadline = DateTime.UtcNow + CloseGraceTimeout;
@@ -32,7 +35,8 @@ public sealed class WindowService(SettingsService settings)
                 return true;
             if (HasBlockingDialog(window.Handle))
                 return false;
-            NativeMethods.PostMessage(window.Handle, NativeMethods.WM_CLOSE, 0, 0);
+            if (OwnershipValid(window.Handle, window.ProcessId))
+                NativeMethods.PostMessage(window.Handle, NativeMethods.WM_CLOSE, 0, 0);
         }
 
         return false;
@@ -54,16 +58,20 @@ public sealed class WindowService(SettingsService settings)
 
         // Send WM_CLOSE to all windows first (non-blocking), then wait
         foreach (var w in list)
-            NativeMethods.PostMessage(w.Handle, NativeMethods.WM_CLOSE, 0, 0);
+        {
+            if (OwnershipValid(w.Handle, w.ProcessId))
+                NativeMethods.PostMessage(w.Handle, NativeMethods.WM_CLOSE, 0, 0);
+        }
 
         var deadline = DateTime.UtcNow + CloseGraceTimeout;
-        var remaining = new HashSet<nint>(list.Select(w => w.Handle));
+        // Track handle -> expected PID so re-sends can verify ownership hasn't changed
+        var remaining = list.ToDictionary(w => w.Handle, w => w.ProcessId);
 
         while (remaining.Count > 0 && DateTime.UtcNow < deadline)
         {
             await Task.Delay(150);
 
-            foreach (var handle in remaining.ToList())
+            foreach (var (handle, pid) in remaining.ToList())
             {
                 if (!NativeMethods.IsWindowVisible(handle))
                 {
@@ -77,15 +85,26 @@ public sealed class WindowService(SettingsService settings)
                     // them answer. We're closing windows, not killing processes.
                     remaining.Remove(handle);
                 }
-                else
+                else if (OwnershipValid(handle, pid))
                 {
                     // Re-send WM_CLOSE on each tick — tabbed apps (e.g. File Explorer) handle
                     // WM_CLOSE as "close active tab" rather than "close window", so we need to
                     // keep sending until all tabs are gone and the window closes.
                     NativeMethods.PostMessage(handle, NativeMethods.WM_CLOSE, 0, 0);
                 }
+                else
+                {
+                    // HWND was recycled by a different process — stop tracking it
+                    remaining.Remove(handle);
+                }
             }
         }
+    }
+
+    private static bool OwnershipValid(nint handle, uint expectedPid)
+    {
+        NativeMethods.GetWindowThreadProcessId(handle, out uint currentPid);
+        return currentPid != 0 && currentPid == expectedPid;
     }
 
     // Detect a confirmation dialog the app put up in response to WM_CLOSE (e.g. "save changes?").
