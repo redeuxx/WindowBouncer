@@ -38,7 +38,7 @@ internal static class ElevationService
     // Returns false if the user cancels UAC or registration fails.
     public static bool RegisterTask(string exePath, bool startWithWindows)
     {
-        var xmlPath = Path.Combine(Path.GetTempPath(), "WindowBouncerTask.xml");
+        var xmlPath = Path.GetTempFileName();
         try
         {
             WriteTaskXml(xmlPath, exePath, startWithWindows);
