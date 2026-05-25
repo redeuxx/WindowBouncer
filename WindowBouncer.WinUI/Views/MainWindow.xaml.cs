@@ -42,6 +42,9 @@ public sealed partial class MainWindow : Window
             work.X + (work.Width  - appWindow.Size.Width)  / 2,
             work.Y + (work.Height - appWindow.Size.Height) / 2));
 
+        if (appWindow.Presenter is OverlappedPresenter presenter)
+            presenter.IsMaximizable = false;
+
         appWindow.Closing += OnAppWindowClosing;
 
         if (Content is FrameworkElement root)
