@@ -45,8 +45,9 @@
                     <CheckBox Content="Start minimized to tray"
                               IsChecked="{x:Bind ViewModel.StartMinimized, Mode=TwoWay}"/>
                     <CheckBox Content="Run as administrator (no UAC prompt)"
+                              IsEnabled="{x:Bind ViewModel.CanRunAsAdmin}"
                               IsChecked="{x:Bind ViewModel.RunAsAdmin, Mode=TwoWay}"/>
-                    <TextBlock Text="Registers a scheduled task that runs the app elevated. Requires one-time UAC approval."
+                    <TextBlock Text="{x:Bind ViewModel.RunAsAdminHint}"
                                FontSize="11"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                Margin="28,0,0,4"

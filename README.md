@@ -15,7 +15,7 @@ WindowBouncer sits in your system tray and gives you a single click (or keypress
 - **Exclusions** — permanently exclude processes or title patterns from appearing in the list
 - **Light / Dark / System theme**
 - **Start with Windows** — optional autostart via registry or, when elevated, a scheduled task
-- **Run as admin** — elevates via a pre-registered scheduled task so UAC prompts are avoided on launch
+- **Run as admin** — elevates via a pre-registered scheduled task so UAC prompts are avoided on launch. Only available when WindowBouncer lives in a folder only administrators can modify (e.g. Program Files or the MSIX package), since the task would otherwise let any program gain admin rights
 
 ## Requirements
 
@@ -47,7 +47,7 @@ Settings are stored in `%APPDATA%\WindowBouncer\settings.json` and are preserved
 | Close to tray | On | Closing the main window hides it; use tray → Exit to quit |
 | Start minimized | Off | Launch directly to tray without showing the main window |
 | Start with Windows | Off | Register autostart at login |
-| Run as admin | Off | Launch elevated via a scheduled task (avoids per-launch UAC) |
+| Run as admin | Off | Launch elevated via a scheduled task (avoids per-launch UAC). Requires an admin-only install folder, so it is unavailable for the default per-user installer |
 | Close All hotkey | (none) | Global hotkey to trigger Close All from any app |
 | Excluded processes | `windowbouncer` | Process names never shown in the list |
 | Excluded title patterns | (none) | Substring or glob patterns matched against window titles |

@@ -19,6 +19,8 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
+    <!-- The elevated task inherits the user's environment; never honor DOTNET_STARTUP_HOOKS. -->
+    <StartupHookSupport>false</StartupHookSupport>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
     <Version>1.0.0</Version>

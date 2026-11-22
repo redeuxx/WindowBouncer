@@ -2,7 +2,6 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using Microsoft.UI.Xaml;
-using Microsoft.Win32;
 using WindowBouncer.Hotkeys;
 using WindowBouncer.Services;
 using WindowBouncer.Settings;
@@ -15,6 +14,7 @@ namespace WindowBouncer;
 public partial class App : Application
 {
     private static Mutex? _instanceMutex;
+    private static SettingsWindow? _settingsWindow;
 
     public static SettingsService Settings { get; } = new();
     public static WindowService WindowService { get; private set; } = null!;
@@ -35,40 +35,44 @@ public partial class App : Application
         var cliArgs = Environment.GetCommandLineArgs();
         var flags = ParseArgs(cliArgs);
 
+        Settings.Load();
+        WindowService = new WindowService(Settings);
+
+        // /CLOSE is a one-shot action that needs no singleton, so it works while the tray
+        // instance is running.
+        if (flags.HasFlag(CliFlag.Close))
+        {
+            RunSilentAndExit();
+            return;
+        }
+
 #if DEBUG
         const string mutexName = "WindowBouncer_SingleInstance_Debug";
 #else
         const string mutexName = "WindowBouncer_SingleInstance";
 #endif
-        _instanceMutex = new Mutex(initiallyOwned: true, mutexName, out bool isNewInstance);
-        if (!isNewInstance)
+        bool isNewInstance;
+        try
+        {
+            _instanceMutex = new Mutex(initiallyOwned: true, mutexName, out isNewInstance);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // An elevated instance created the mutex and its DACL keeps us out: it is running.
+            Exit();
+            return;
+        }
+        // An instance started by the task waits for the instance that launched it to exit.
+        if (!isNewInstance && !(flags.HasFlag(CliFlag.FromTask) && WaitForInstanceMutex()))
         {
             _instanceMutex.Dispose();
+            _instanceMutex = null;
             Exit();
             return;
         }
 
-        Settings.Load();
-
-#if !DEBUG
-        if (Settings.Current.RunAsAdmin && !ElevationService.IsElevated())
-        {
-            try { _instanceMutex?.ReleaseMutex(); } catch { }
-            if (ElevationService.IsTaskRegistered())
-                ElevationService.LaunchViaTask();
-            else
-            {
-                Settings.Current.RunAsAdmin = false;
-                Settings.Save();
-            }
-            Exit();
-            return;
-        }
-#endif
-
-        Theme.Apply(Settings.Current.Theme);
-        WindowService = new WindowService(Settings);
-
+        // Installer actions run before the elevation redirect, which would otherwise start a
+        // full elevated instance instead of quitting.
         if (flags.HasFlag(CliFlag.RegisterStartup))
             ApplyInstallerStartup();
 
@@ -78,11 +82,15 @@ public partial class App : Application
             return;
         }
 
-        if (flags.HasFlag(CliFlag.Close))
+#if !DEBUG
+        if (Settings.Current.RunAsAdmin && RedirectToElevatedInstance(flags))
         {
-            RunSilentAndExit();
+            Exit();
             return;
         }
+#endif
+
+        Theme.Apply(Settings.Current.Theme);
 
         var vm = new MainViewModel(WindowService);
         var window = new MainWindow(vm);
@@ -132,20 +140,86 @@ public partial class App : Application
         Debug.WriteLine($"Unhandled: {e.Exception}");
     }
 
+    // ELEVATION
+
+    private static bool WaitForInstanceMutex()
+    {
+        try { return _instanceMutex!.WaitOne(TimeSpan.FromSeconds(10)); }
+        catch (AbandonedMutexException) { return true; }
+    }
+
+    private static void ReleaseInstanceMutex()
+    {
+        try { _instanceMutex?.ReleaseMutex(); } catch { }
+        _instanceMutex?.Dispose();
+        _instanceMutex = null;
+    }
+
+    // Returns true when an elevated instance was started and this one should exit.
+    private static bool RedirectToElevatedInstance(CliFlag flags)
+    {
+        if (ElevationService.IsElevated())
+        {
+            // A task registered by an older version for a user-writable install folder.
+            // Remove it now, while that needs no UAC prompt.
+            if (!ElevationService.IsInstallLocationProtected(Environment.ProcessPath))
+            {
+                ElevationService.UnregisterTask();
+                DisableRunAsAdmin();
+            }
+            return false;
+        }
+
+        // Started by the task but still not elevated (e.g. a standard user, where HighestAvailable
+        // gives a limited token). Redirecting again would loop forever.
+        if (flags.HasFlag(CliFlag.FromTask))
+        {
+            ElevationService.UnregisterTask();
+            DisableRunAsAdmin();
+            return false;
+        }
+
+        if (!ElevationService.IsTaskRegistered())
+        {
+            DisableRunAsAdmin();
+            return false;
+        }
+
+        // The task passes /NOUI when autostart is on; a manual launch should still show the window.
+        if (!flags.HasFlag(CliFlag.NoUi))
+        {
+            Settings.Current.RestoreWindowOnNextLaunch = true;
+            Settings.Save();
+        }
+
+        if (ElevationService.LaunchViaTask())
+        {
+            ReleaseInstanceMutex();
+            return true;
+        }
+
+        // Task disabled or broken: run unelevated this time rather than not at all.
+        Settings.Current.RestoreWindowOnNextLaunch = false;
+        Settings.Save();
+        return false;
+    }
+
+    private static void DisableRunAsAdmin()
+    {
+        Settings.Current.RunAsAdmin = false;
+        // The task was providing autostart; hand it back to the Run key.
+        if (Settings.Current.StartWithWindows)
+            SettingsViewModel.SetRegistryStartup(true);
+        Settings.Save();
+    }
+
     // CLI ACTIONS
 
     private static void ApplyInstallerStartup()
     {
         if (Settings.Current.StartWithWindows) return;
         Settings.Current.StartWithWindows = true;
-        try
-        {
-            using var key = Registry.CurrentUser.OpenSubKey(
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", writable: true);
-            var exePath = Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
-            key?.SetValue("WindowBouncer", $"\"{exePath}\" /NOUI");
-        }
-        catch { }
+        SettingsViewModel.SetRegistryStartup(true);
         Settings.Save();
     }
 
@@ -157,7 +231,7 @@ public partial class App : Application
     }
 
     [Flags]
-    private enum CliFlag { None = 0, NoUi = 1, Close = 2, RegisterStartup = 4, Quit = 8 }
+    private enum CliFlag { None = 0, NoUi = 1, Close = 2, RegisterStartup = 4, Quit = 8, FromTask = 16 }
 
     private static CliFlag ParseArgs(string[] args)
     {
@@ -170,6 +244,7 @@ public partial class App : Application
                 "/CLOSE"            or "--CLOSE"            => CliFlag.Close,
                 "/REGISTERSTARTUP"  or "--REGISTERSTARTUP"  => CliFlag.RegisterStartup,
                 "/QUIT"             or "--QUIT"             => CliFlag.Quit,
+                ElevationService.FromTaskArg                => CliFlag.FromTask,
                 _                                            => CliFlag.None
             };
         }
@@ -178,8 +253,17 @@ public partial class App : Application
 
     internal static void ShowSettings()
     {
+        // One Settings window at a time, so two copies can't overwrite each other's changes.
+        if (_settingsWindow is not null)
+        {
+            _settingsWindow.Activate();
+            return;
+        }
+
         var vm = new SettingsViewModel(Settings);
         var win = new SettingsWindow(vm);
+        _settingsWindow = win;
+        win.Closed += (_, _) => _settingsWindow = null;
         vm.CloseRequested += (_, _) =>
         {
             Hotkeys.ApplySettings(Settings.Current);
@@ -191,9 +275,14 @@ public partial class App : Application
             {
                 Settings.Current.RestoreWindowOnNextLaunch = true;
                 Settings.Save();
-                try { _instanceMutex?.ReleaseMutex(); } catch { }
-                ElevationService.LaunchViaTask();
-                Shutdown();
+                // The new instance waits for our mutex, which Shutdown releases.
+                if (ElevationService.LaunchViaTask())
+                {
+                    Shutdown();
+                    return;
+                }
+                Settings.Current.RestoreWindowOnNextLaunch = false;
+                Settings.Save();
             }
         };
         OwnedDialog.CenterOver(win, MainAppWindow);
@@ -210,8 +299,7 @@ public partial class App : Application
         }
         finally
         {
-            try { _instanceMutex?.ReleaseMutex(); } catch { }
-            _instanceMutex?.Dispose();
+            ReleaseInstanceMutex();
         }
         ((App)Current).Exit();
     }

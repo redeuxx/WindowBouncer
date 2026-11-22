@@ -1,6 +1,5 @@
 using System;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -28,6 +27,13 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool RunAsAdmin { get; set; }
+
+    // Run as admin is only offered when non-admins can't replace the exe (see ElevationService).
+    public bool CanRunAsAdmin { get; } = ElevationService.IsInstallLocationProtected(Environment.ProcessPath);
+
+    public string RunAsAdminHint => CanRunAsAdmin
+        ? "Registers a scheduled task that runs the app elevated. Requires one-time UAC approval."
+        : "Unavailable: WindowBouncer is installed in a folder your account can write to, so an elevated task would let any program gain admin rights. It needs a folder only administrators can modify, such as Program Files.";
 
     [ObservableProperty]
     public partial AppTheme Theme { get; set; }
@@ -129,8 +135,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         var s = _settingsService.Current;
 
-        RunAsAdmin = s.RunAsAdmin;
-        StartWithWindows = s.RunAsAdmin ? s.StartWithWindows : IsStartupRegistered();
+        RunAsAdmin = s.RunAsAdmin && CanRunAsAdmin;
+        StartWithWindows = RunAsAdmin ? s.StartWithWindows : IsStartupRegistered();
         StartMinimized = s.StartMinimized;
         CloseToTray = s.CloseToTray;
         Theme = s.Theme;
@@ -146,14 +152,16 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private void ApplyStartupSettings()
     {
-        if (RunAsAdmin)
+        if (RunAsAdmin && ElevationService.RegisterTask(Environment.ProcessPath ?? string.Empty, StartWithWindows))
         {
+            // The task now handles autostart; drop the Run key only once it exists.
             RemoveRegistryStartup();
-            var exePath = Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
-            ElevationService.RegisterTask(exePath, StartWithWindows);
         }
         else
         {
+            // Either admin mode is off or registration failed (UAC cancelled, unprotected folder).
+            RunAsAdmin = false;
+            _settingsService.Current.RunAsAdmin = false;
             if (ElevationService.IsTaskRegistered())
                 ElevationService.UnregisterTask();
             SetRegistryStartup(StartWithWindows);
@@ -170,7 +178,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         catch { return false; }
     }
 
-    private static void SetRegistryStartup(bool enable)
+    internal static void SetRegistryStartup(bool enable)
     {
         try
         {
@@ -179,7 +187,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
             if (enable)
             {
-                var exePath = Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
+                var exePath = Environment.ProcessPath ?? string.Empty;
                 key.SetValue(AppName, $"\"{exePath}\" /NOUI");
             }
             else
