@@ -72,6 +72,10 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   ResultCode: Integer;
 begin
+  // The app writes this Run value itself (Start with Windows), so Inno doesn't track it.
+  if CurUninstallStep = usUninstall then
+    RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'WindowBouncer');
+
   if (CurUninstallStep = usUninstall) and WindowBouncerTaskExists then
   begin
     if (not Exec('schtasks.exe', '/delete /tn WindowBouncer /f', '', SW_HIDE,
