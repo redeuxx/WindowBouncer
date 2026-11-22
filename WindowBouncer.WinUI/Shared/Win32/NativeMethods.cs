@@ -82,9 +82,12 @@ internal static class NativeMethods
 
     // MESSAGES
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool PostMessage(nint hWnd, uint Msg, nint wParam, nint lParam);
+    public const uint SMTO_ABORTIFHUNG = 0x0002;
+
+    // Returns nonzero once the target's window procedure has returned from the message.
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern nint SendMessageTimeout(nint hWnd, uint Msg, nint wParam, nint lParam,
+        uint fuFlags, uint uTimeout, out nint lpdwResult);
 
     [DllImport("user32.dll")]
     public static extern nint GetWindow(nint hWnd, uint uCmd);
