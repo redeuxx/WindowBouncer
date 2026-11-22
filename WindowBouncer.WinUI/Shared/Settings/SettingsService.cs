@@ -1,4 +1,5 @@
 using System.IO;
+using System.IO.Enumeration;
 using System.Text.Json;
 
 namespace WindowBouncer.Settings;
@@ -18,6 +19,12 @@ public sealed class SettingsService
     };
 
     public AppSettings Current { get; private set; } = new();
+
+    // Set when settings.json exists but could not be read. The file is backed up before the
+    // first save so a transient lock or a hand-edit typo doesn't wipe the user's settings.
+    private bool _loadFailed;
+
+    private static readonly bool IsElevated = WindowBouncer.Services.ElevationService.IsElevated();
 
     // These were previously in the default exclude list. Strip them from saved settings on load
     // so users who never touched their exclude list aren't stuck with stale defaults.
@@ -44,6 +51,7 @@ public sealed class SettingsService
         catch
         {
             Current = new AppSettings();
+            _loadFailed = File.Exists(SettingsPath);
         }
     }
 
@@ -52,8 +60,20 @@ public sealed class SettingsService
         try
         {
             Directory.CreateDirectory(SettingsDir);
+            if (_loadFailed)
+            {
+                // Elevated, a copy into this user-writable folder could be redirected onto a
+                // protected file with attacker-chosen content. Keep the original, skip the save.
+                if (IsElevated) return;
+                // Throws (and skips the save) if the original still can't be read.
+                File.Copy(SettingsPath, SettingsPath + ".bad", overwrite: true);
+                _loadFailed = false;
+            }
             var json = JsonSerializer.Serialize(Current, JsonOptions);
-            File.WriteAllText(SettingsPath, json);
+            // Write then rename, so a crash or power loss mid-write can't leave a truncated file.
+            var tmp = SettingsPath + ".tmp";
+            File.WriteAllText(tmp, json);
+            File.Move(tmp, SettingsPath, overwrite: true);
         }
         catch
         {
@@ -68,7 +88,11 @@ public sealed class SettingsService
 
         foreach (var excluded in Current.ExcludedProcessNames)
         {
-            if (string.Equals(processName, excluded, StringComparison.OrdinalIgnoreCase))
+            // Accept "chrome.exe" as typed from Task Manager; process names have no extension.
+            var name = excluded.Trim();
+            if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                name = name[..^4];
+            if (string.Equals(processName, name, StringComparison.OrdinalIgnoreCase))
                 return true;
         }
 
@@ -76,7 +100,11 @@ public sealed class SettingsService
         {
             if (string.IsNullOrEmpty(pattern))
                 continue;
-            if (windowTitle.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+            // "*" and "?" make it a glob over the whole title; otherwise a substring match.
+            bool match = pattern.AsSpan().IndexOfAny('*', '?') >= 0
+                ? FileSystemName.MatchesSimpleExpression(pattern, windowTitle, ignoreCase: true)
+                : windowTitle.Contains(pattern, StringComparison.OrdinalIgnoreCase);
+            if (match)
                 return true;
         }
 
