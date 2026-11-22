@@ -35,6 +35,14 @@ public sealed class HotKeyConfig
 
     [JsonIgnore]
     public bool IsSet => VirtualKey != 0;
+
+    [JsonIgnore]
+    public bool IsSafe => IsSet && IsSafeCombo(Ctrl, Alt, Win, VirtualKey);
+
+    // Without Ctrl, Alt or Win the hotkey would swallow that key (or Shift+key) in every app
+    // and close all windows each time it is typed. F13-F24 are fine alone: nobody types them.
+    public static bool IsSafeCombo(bool ctrl, bool alt, bool win, uint virtualKey)
+        => ctrl || alt || win || virtualKey is >= 0x7C and <= 0x87;
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]

@@ -25,7 +25,7 @@ public sealed class HotkeyService : IDisposable
 
         if (_messageWindow is null) return;
 
-        if (settings.HotKeyCloseAll.IsSet)
+        if (settings.HotKeyCloseAll.IsSafe)
         {
             uint mods = BuildModifiers(settings.HotKeyCloseAll) | NativeMethods.MOD_NOREPEAT;
             _closeAllRegistered = NativeMethods.RegisterHotKey(

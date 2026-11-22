@@ -27,7 +27,7 @@ public sealed partial class HotKeyViewModel : ObservableObject
     public partial bool IsCapturing { get; set; }
 
     public bool IsSet => VirtualKey != 0;
-    public string CaptureButtonLabel => IsCapturing ? "Press a key..." : "Set";
+    public string CaptureButtonLabel => IsCapturing ? "Press Ctrl/Alt/Win + key..." : "Set";
 
     public string DisplayText
     {
@@ -59,7 +59,7 @@ public sealed partial class HotKeyViewModel : ObservableObject
 
     public void CaptureKey(VirtualKey key, bool ctrl, bool alt, bool shift, bool win)
     {
-        if (VirtualKeyNames.IsModifier(key))
+        if (VirtualKeyNames.IsModifier(key) || !HotKeyConfig.IsSafeCombo(ctrl, alt, win, (uint)key))
             return;
 
         Ctrl  = ctrl;
