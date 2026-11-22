@@ -4,6 +4,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Windows.Graphics;
 using WinRT.Interop;
+using WindowBouncer.Win32;
 
 namespace WindowBouncer.Services;
 
@@ -22,9 +23,21 @@ internal static class OwnedDialog
 
         var childHwnd = WindowNative.GetWindowHandle(child);
         var ownerHwnd = WindowNative.GetWindowHandle(owner);
+        var childApp = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(childHwnd));
+
+        // Owner hidden in the tray (parked off-screen) or minimized: centering over it would put
+        // the dialog off-screen, so center on the primary display and leave it unowned.
+        if (!NativeMethods.IsWindowVisible(ownerHwnd) || NativeMethods.IsIconic(ownerHwnd))
+        {
+            var work = DisplayArea.Primary.WorkArea;
+            childApp.Move(new PointInt32(
+                work.X + (work.Width  - childApp.Size.Width)  / 2,
+                work.Y + (work.Height - childApp.Size.Height) / 2));
+            return;
+        }
+
         SetWindowLongPtr(childHwnd, GWLP_HWNDPARENT, ownerHwnd);
 
-        var childApp = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(childHwnd));
         var ownerApp = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(ownerHwnd));
 
         var x = ownerApp.Position.X + (ownerApp.Size.Width  - childApp.Size.Width)  / 2;
