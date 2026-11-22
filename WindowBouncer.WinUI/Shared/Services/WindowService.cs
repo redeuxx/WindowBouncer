@@ -22,21 +22,18 @@ public sealed class WindowService(SettingsService settings)
 
     public async Task<bool> CloseWindowAsync(WindowInfo window)
     {
-        if (!OwnershipValid(window.Handle, window.ProcessId))
-            return false;
-
-        NativeMethods.PostMessage(window.Handle, NativeMethods.WM_CLOSE, 0, 0);
-
         var deadline = DateTime.UtcNow + CloseGraceTimeout;
         while (DateTime.UtcNow < deadline)
         {
+            // Verify ownership before every post so a recycled HWND is never targeted
+            if (!OwnershipValid(window.Handle, window.ProcessId))
+                return false;
+            NativeMethods.PostMessage(window.Handle, NativeMethods.WM_CLOSE, 0, 0);
             await Task.Delay(100);
             if (!NativeMethods.IsWindowVisible(window.Handle))
                 return true;
             if (HasBlockingDialog(window.Handle))
                 return false;
-            if (OwnershipValid(window.Handle, window.ProcessId))
-                NativeMethods.PostMessage(window.Handle, NativeMethods.WM_CLOSE, 0, 0);
         }
 
         return false;
@@ -79,23 +76,19 @@ public sealed class WindowService(SettingsService settings)
                     closed++;
                     progress?.Report(new CloseAllProgress(closed, total));
                 }
-                else if (HasBlockingDialog(handle))
+                else if (HasBlockingDialog(handle) || !OwnershipValid(handle, pid))
                 {
-                    // App is prompting the user (e.g. "save changes?") — back off and let
-                    // them answer. We're closing windows, not killing processes.
+                    // Either the app is prompting the user (e.g. "save changes?"), so back off
+                    // and let them answer (we're closing windows, not killing processes), or the
+                    // HWND was recycled by a different process. Stop tracking it either way.
                     remaining.Remove(handle);
-                }
-                else if (OwnershipValid(handle, pid))
-                {
-                    // Re-send WM_CLOSE on each tick — tabbed apps (e.g. File Explorer) handle
-                    // WM_CLOSE as "close active tab" rather than "close window", so we need to
-                    // keep sending until all tabs are gone and the window closes.
-                    NativeMethods.PostMessage(handle, NativeMethods.WM_CLOSE, 0, 0);
                 }
                 else
                 {
-                    // HWND was recycled by a different process — stop tracking it
-                    remaining.Remove(handle);
+                    // Re-send WM_CLOSE on each tick: tabbed apps (e.g. File Explorer) handle
+                    // WM_CLOSE as "close active tab" rather than "close window", so we need to
+                    // keep sending until all tabs are gone and the window closes.
+                    NativeMethods.PostMessage(handle, NativeMethods.WM_CLOSE, 0, 0);
                 }
             }
         }
