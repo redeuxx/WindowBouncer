@@ -103,7 +103,9 @@ public partial class App : Application
 
         Hotkeys = new HotkeyService();
         Hotkeys.Initialize();
-        Hotkeys.ApplySettings(Settings.Current);
+        if (!Hotkeys.Apply(Settings.Current.HotKeyCloseAll))
+            TrayIcon.ShowNotification("Close All hotkey not active",
+                "The configured hotkey is in use by Windows or another app. Pick another one in Settings.");
         Hotkeys.CloseAllTriggered += async (_, _) =>
         {
             var windows = await WindowService.GetWindowsAsync();
@@ -260,13 +262,12 @@ public partial class App : Application
             return;
         }
 
-        var vm = new SettingsViewModel(Settings);
+        var vm = new SettingsViewModel(Settings) { ApplyHotkey = Hotkeys.Apply };
         var win = new SettingsWindow(vm);
         _settingsWindow = win;
         win.Closed += (_, _) => _settingsWindow = null;
         vm.CloseRequested += (_, _) =>
         {
-            Hotkeys.ApplySettings(Settings.Current);
             Theme.Apply(Settings.Current.Theme);
             if (MainAppWindow is MainWindow mw)
                 mw.SetCloseToTray(Settings.Current.CloseToTray);

@@ -57,12 +57,20 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     public partial string? SelectedTitle { get; set; }
 
+    // Shown next to Save when the new hotkey could not be registered.
+    [ObservableProperty]
+    public partial string HotkeyError { get; set; } = string.Empty;
+
+    // Registers the hotkey for real; returns false if Windows or another app already owns it.
+    public Func<HotKeyConfig, bool>? ApplyHotkey { get; init; }
+
     public event EventHandler? CloseRequested;
 
     public SettingsViewModel(SettingsService settingsService)
     {
         _settingsService = settingsService;
         LoadFromSettings();
+        HotKeyCloseAll.PropertyChanged += (_, _) => HotkeyError = string.Empty;
     }
 
     partial void OnNewProcessNameChanged(string value) => AddProcessCommand.NotifyCanExecuteChanged();
@@ -111,12 +119,21 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private void Save()
     {
+        // Try the hotkey first: if it's taken, keep the window open and save nothing, so the
+        // settings never claim a hotkey that doesn't work. The old one stays registered.
+        var hotkey = HotKeyCloseAll.ToConfig();
+        if (ApplyHotkey is not null && !ApplyHotkey(hotkey))
+        {
+            HotkeyError = $"{HotKeyCloseAll.DisplayText} is already in use by Windows or another app. Pick another hotkey.";
+            return;
+        }
+
         var s = _settingsService.Current;
 
         s.StartMinimized = StartMinimized;
         s.CloseToTray = CloseToTray;
         s.Theme = Theme;
-        s.HotKeyCloseAll = HotKeyCloseAll.ToConfig();
+        s.HotKeyCloseAll = hotkey;
         s.ExcludedProcessNames = [.. ExcludedProcessNames];
         s.ExcludedTitlePatterns = [.. ExcludedTitlePatterns];
         s.StartWithWindows = StartWithWindows;

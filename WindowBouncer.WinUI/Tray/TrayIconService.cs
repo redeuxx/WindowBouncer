@@ -76,6 +76,12 @@ public sealed class TrayIconService : IDisposable
     public void ShowMainWindow() => _mainWindow?.ShowFromTray();
     public void HideMainWindow() => _mainWindow?.HideToTray();
 
+    public void ShowNotification(string title, string message)
+    {
+        try { _trayIcon.ShowNotification(title, message, NotificationIcon.Warning); }
+        catch { }
+    }
+
     public void UpdateTooltip(int windowCount)
         => _trayIcon.UpdateToolTip($"WindowBouncer \u2014 {windowCount} windows");
 

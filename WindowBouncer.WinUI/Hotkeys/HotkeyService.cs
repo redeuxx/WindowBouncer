@@ -9,7 +9,7 @@ public sealed class HotkeyService : IDisposable
     private const int IdCloseAll = 0x4201;
 
     private Win32MessageWindow? _messageWindow;
-    private bool _closeAllRegistered;
+    private HotKeyConfig? _registered;
 
     public event EventHandler? CloseAllTriggered;
 
@@ -19,29 +19,37 @@ public sealed class HotkeyService : IDisposable
         _messageWindow.MessageReceived += OnMessageReceived;
     }
 
-    public void ApplySettings(AppSettings settings)
+    // Registers config as the Close All hotkey. Returns false when it can't be registered
+    // (taken by Windows or another app, or unsafe); the previous hotkey then stays active.
+    // An unset config clears the hotkey and succeeds.
+    public bool Apply(HotKeyConfig config)
     {
-        UnregisterAll();
+        if (_messageWindow is null) return false;
 
-        if (_messageWindow is null) return;
+        var previous = _registered;
+        Unregister();
 
-        if (settings.HotKeyCloseAll.IsSafe)
-        {
-            uint mods = BuildModifiers(settings.HotKeyCloseAll) | NativeMethods.MOD_NOREPEAT;
-            _closeAllRegistered = NativeMethods.RegisterHotKey(
-                _messageWindow.Handle, IdCloseAll, mods, settings.HotKeyCloseAll.VirtualKey);
-        }
+        if (!config.IsSet) return true;
+        if (config.IsSafe && Register(config)) return true;
+
+        if (previous is not null) Register(previous);
+        return false;
     }
 
-    private void UnregisterAll()
+    private bool Register(HotKeyConfig config)
     {
-        if (_messageWindow is null) return;
+        uint mods = BuildModifiers(config) | NativeMethods.MOD_NOREPEAT;
+        if (!NativeMethods.RegisterHotKey(_messageWindow!.Handle, IdCloseAll, mods, config.VirtualKey))
+            return false;
+        _registered = config;
+        return true;
+    }
 
-        if (_closeAllRegistered)
-        {
-            NativeMethods.UnregisterHotKey(_messageWindow.Handle, IdCloseAll);
-            _closeAllRegistered = false;
-        }
+    private void Unregister()
+    {
+        if (_messageWindow is null || _registered is null) return;
+        NativeMethods.UnregisterHotKey(_messageWindow.Handle, IdCloseAll);
+        _registered = null;
     }
 
     private nint OnMessageReceived(nint hwnd, uint msg, nint wParam, nint lParam, ref bool handled)
@@ -70,7 +78,7 @@ public sealed class HotkeyService : IDisposable
 
     public void Dispose()
     {
-        UnregisterAll();
+        Unregister();
         if (_messageWindow is not null)
         {
             _messageWindow.MessageReceived -= OnMessageReceived;
