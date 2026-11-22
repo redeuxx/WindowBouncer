@@ -24,7 +24,8 @@ public sealed partial class MainViewModel : ObservableObject
     public partial bool IsBusy { get; set; }
 
     public int TotalCount => FilteredWindows.Count;
-    public int SelectedCount => Windows.Count(w => w.IsSelected);
+    // Everything below acts on FilteredWindows: rows hidden by the filter are never closed.
+    public int SelectedCount => FilteredWindows.Count(w => w.IsSelected);
 
     public MainViewModel(WindowService windowService)
     {
@@ -78,7 +79,9 @@ public sealed partial class MainViewModel : ObservableObject
             FilteredWindows.Add(item);
 
         OnPropertyChanged(nameof(TotalCount));
+        OnPropertyChanged(nameof(SelectedCount));
         CloseAllCommand.NotifyCanExecuteChanged();
+        CloseSelectedCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand(CanExecute = nameof(CanRefresh))]
@@ -109,7 +112,7 @@ public sealed partial class MainViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var targets = Windows.Where(w => w.IsSelected).ToList();
+            var targets = FilteredWindows.Where(w => w.IsSelected).ToList();
             foreach (var item in targets)
                 item.IsClosing = true;
 
@@ -130,7 +133,7 @@ public sealed partial class MainViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            await _windowService.CloseAllAsync(Windows.Select(w => w.Info));
+            await _windowService.CloseAllAsync(FilteredWindows.Select(w => w.Info).ToList());
             await RefreshAsync();
         }
         finally
@@ -139,7 +142,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    private bool CanCloseAll() => !IsBusy && Windows.Count > 0;
+    private bool CanCloseAll() => !IsBusy && FilteredWindows.Count > 0;
 
     [RelayCommand]
     private void SelectAll()

@@ -6,6 +6,8 @@ namespace WindowBouncer.Win32;
 
 public static class WindowEnumerator
 {
+    private static readonly string OwnProcessName = Path.GetFileNameWithoutExtension(Environment.ProcessPath) ?? string.Empty;
+
     public static IReadOnlyList<WindowInfo> GetVisibleWindows()
     {
         var desktop = NativeMethods.GetDesktopWindow();
@@ -22,6 +24,10 @@ public static class WindowEnumerator
 
             NativeMethods.GetWindowThreadProcessId(hWnd, out uint pid);
             var processName = GetProcessName(pid);
+            // Never list WindowBouncer itself (this instance, or the tray instance during /CLOSE):
+            // closing our own windows would shut the app down or discard open settings.
+            if (string.Equals(processName, OwnProcessName, StringComparison.OrdinalIgnoreCase))
+                return true;
             var isMinimized = NativeMethods.IsIconic(hWnd);
 
             windows.Add(new WindowInfo(hWnd, title, processName, pid, isMinimized));
