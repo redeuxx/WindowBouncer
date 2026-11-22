@@ -13,8 +13,6 @@ public sealed class TrayIconService : IDisposable
 {
     private readonly TrayIconWithContextMenu _trayIcon;
     private readonly WindowService _windowService;
-    private readonly Win32MessageWindow _taskbarWatcher;
-    private readonly uint _taskbarCreatedMsg;
     private MainWindow? _mainWindow;
     private DispatcherQueue? _dispatcher;
     private Icon? _icon;
@@ -36,10 +34,13 @@ public sealed class TrayIconService : IDisposable
         _trayIcon.MessageWindow.MouseEventReceived += OnMouseEvent;
         _trayIcon.Create();
 
-        // Re-register the tray icon when Explorer (re)creates the taskbar
-        _taskbarCreatedMsg = NativeMethods.RegisterWindowMessage("TaskbarCreated");
-        _taskbarWatcher = new Win32MessageWindow("WindowBouncer_TaskbarWatcher");
-        _taskbarWatcher.MessageReceived += OnTaskbarMessage;
+        // Re-add the icon when Explorer restarts. TaskbarCreated is broadcast only to top-level
+        // windows, so it must be heard on H.NotifyIcon's own window, not a message-only one.
+        // When elevated, UIPI drops that broadcast from the unelevated Explorer unless allowed.
+        _trayIcon.MessageWindow.TaskbarCreated += OnTaskbarCreated;
+        if (ElevationService.IsElevated())
+            NativeMethods.ChangeWindowMessageFilterEx(_trayIcon.MessageWindow.Handle,
+                NativeMethods.RegisterWindowMessage("TaskbarCreated"), NativeMethods.MSGFLT_ALLOW, 0);
     }
 
     public void SetMainWindow(MainWindow window)
@@ -62,18 +63,14 @@ public sealed class TrayIconService : IDisposable
             RunOnUi(ShowMainWindow);
     }
 
-    private nint OnTaskbarMessage(nint hwnd, uint msg, nint wParam, nint lParam, ref bool handled)
+    private void OnTaskbarCreated(object? sender, EventArgs e)
     {
-        if (msg == _taskbarCreatedMsg)
+        try
         {
-            try
-            {
-                _trayIcon.Remove();
-                _trayIcon.Create();
-            }
-            catch { }
+            _trayIcon.Remove();
+            _trayIcon.Create();
         }
-        return 0;
+        catch { }
     }
 
     public void ShowMainWindow() => _mainWindow?.ShowFromTray();
@@ -103,11 +100,12 @@ public sealed class TrayIconService : IDisposable
             ShowSettingsRequested?.Invoke(this, EventArgs.Empty);
         }));
 
+        // Runs on H.NotifyIcon's thread, where an unhandled exception kills the process.
         var diagnostic = new PopupMenuItem("Dump Window Diagnostic...", (_, _) =>
         {
-            var path = WindowEnumerator.DumpAllWindows();
             try
             {
+                var path = WindowEnumerator.DumpAllWindows();
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = path,
@@ -124,7 +122,10 @@ public sealed class TrayIconService : IDisposable
         menu.Items.Add(closeAll);
         menu.Items.Add(new PopupMenuSeparator());
         menu.Items.Add(settings);
-        menu.Items.Add(diagnostic);
+        // The dump goes to the Desktop, a path any same-user process can redirect. An elevated
+        // write there could be steered onto a protected file, so offer it only unelevated.
+        if (!ElevationService.IsElevated())
+            menu.Items.Add(diagnostic);
         menu.Items.Add(new PopupMenuSeparator());
         menu.Items.Add(exit);
 
@@ -139,7 +140,7 @@ public sealed class TrayIconService : IDisposable
             if (File.Exists(path))
                 return new Icon(path);
 
-            var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            var exePath = Environment.ProcessPath;
             if (exePath is not null)
                 return Icon.ExtractAssociatedIcon(exePath);
         }
@@ -159,8 +160,8 @@ public sealed class TrayIconService : IDisposable
 
     public void Dispose()
     {
+        try { _trayIcon.MessageWindow.TaskbarCreated -= OnTaskbarCreated; } catch { }
         try { _trayIcon.Dispose(); } catch { }
-        try { _taskbarWatcher.Dispose(); } catch { }
         _icon?.Dispose();
     }
 }

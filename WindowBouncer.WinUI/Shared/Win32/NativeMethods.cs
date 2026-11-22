@@ -94,6 +94,11 @@ internal static class NativeMethods
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern uint RegisterWindowMessage(string lpString);
 
+    public const uint MSGFLT_ALLOW = 1;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool ChangeWindowMessageFilterEx(nint hWnd, uint message, uint action, nint pChangeFilterStruct);
+
     // HOTKEYS
 
     [DllImport("user32.dll")]
