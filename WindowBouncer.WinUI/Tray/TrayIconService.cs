@@ -65,9 +65,12 @@ public sealed class TrayIconService : IDisposable
 
     private void OnTaskbarCreated(object? sender, EventArgs e)
     {
+        // The old icon died with the previous Explorer, so the delete fails. Remove() turns that
+        // into an exception (which used to skip Create); TryRemove() only reports it, and it
+        // clears IsCreated either way so Create() actually re-adds the icon.
         try
         {
-            _trayIcon.Remove();
+            _trayIcon.TryRemove();
             _trayIcon.Create();
         }
         catch { }
