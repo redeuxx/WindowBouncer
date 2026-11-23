@@ -81,8 +81,22 @@ public sealed class TrayIconService : IDisposable
 
     public void ShowNotification(string title, string message)
     {
-        try { _trayIcon.ShowNotification(title, message, NotificationIcon.Warning); }
-        catch { }
+        // TrayIconWithContextMenu creates the icon on its own thread, so right after startup it
+        // may not exist yet and ShowNotification would throw. Show it once the icon is created.
+        int shown = 0;
+        void Show()
+        {
+            if (Interlocked.Exchange(ref shown, 1) == 1) return;
+            // Not respecting quiet time: Windows would otherwise drop it during a new user's first
+            // hour, and this is a warning the user needs (e.g. the hotkey isn't working).
+            try { _trayIcon.ShowNotification(title, message, NotificationIcon.Warning, respectQuietTime: false); }
+            catch { }
+        }
+        void OnCreated(object? sender, EventArgs e) { _trayIcon.Created -= OnCreated; Show(); }
+
+        _trayIcon.Created += OnCreated;
+        if (_trayIcon.IsCreated)
+            OnCreated(this, EventArgs.Empty);
     }
 
     public void UpdateTooltip(int windowCount)
