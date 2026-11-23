@@ -10,6 +10,7 @@ public sealed class HotkeyService : IDisposable
 
     private Win32MessageWindow? _messageWindow;
     private HotKeyConfig? _registered;
+    private bool _suspended;
 
     public event EventHandler? CloseAllTriggered;
 
@@ -28,12 +29,33 @@ public sealed class HotkeyService : IDisposable
 
         var previous = _registered;
         Unregister();
+        _suspended = false;
 
         if (!config.IsSet) return true;
         if (config.IsSafe && Register(config)) return true;
 
         if (previous is not null) Register(previous);
         return false;
+    }
+
+    // While Settings captures a new hotkey, the current one must not be registered: Windows
+    // would swallow the keystroke and fire Close All instead of letting Settings see it.
+    public void SetSuspended(bool suspended)
+    {
+        if (_messageWindow is null || suspended == _suspended) return;
+        _suspended = suspended;
+        if (_registered is null) return;
+
+        if (suspended)
+        {
+            NativeMethods.UnregisterHotKey(_messageWindow.Handle, IdCloseAll);
+        }
+        else
+        {
+            var config = _registered;
+            _registered = null;
+            Register(config);   // If another app grabbed it meanwhile, it stays unregistered.
+        }
     }
 
     private bool Register(HotKeyConfig config)
@@ -48,7 +70,8 @@ public sealed class HotkeyService : IDisposable
     private void Unregister()
     {
         if (_messageWindow is null || _registered is null) return;
-        NativeMethods.UnregisterHotKey(_messageWindow.Handle, IdCloseAll);
+        if (!_suspended)
+            NativeMethods.UnregisterHotKey(_messageWindow.Handle, IdCloseAll);
         _registered = null;
     }
 

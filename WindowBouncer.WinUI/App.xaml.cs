@@ -262,10 +262,14 @@ public partial class App : Application
             return;
         }
 
-        var vm = new SettingsViewModel(Settings) { ApplyHotkey = Hotkeys.Apply };
+        var vm = new SettingsViewModel(Settings) { ApplyHotkey = Hotkeys.Apply, SuspendHotkey = Hotkeys.SetSuspended };
         var win = new SettingsWindow(vm);
         _settingsWindow = win;
-        win.Closed += (_, _) => _settingsWindow = null;
+        win.Closed += (_, _) =>
+        {
+            _settingsWindow = null;
+            Hotkeys.SetSuspended(false);   // closed mid-capture: put the hotkey back
+        };
         vm.CloseRequested += (_, _) =>
         {
             Theme.Apply(Settings.Current.Theme);

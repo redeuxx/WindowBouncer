@@ -64,13 +64,21 @@ public sealed partial class SettingsViewModel : ObservableObject
     // Registers the hotkey for real; returns false if Windows or another app already owns it.
     public Func<HotKeyConfig, bool>? ApplyHotkey { get; init; }
 
+    // Called with true while a new hotkey is being captured, false when capture ends.
+    public Action<bool>? SuspendHotkey { get; init; }
+
     public event EventHandler? CloseRequested;
 
     public SettingsViewModel(SettingsService settingsService)
     {
         _settingsService = settingsService;
         LoadFromSettings();
-        HotKeyCloseAll.PropertyChanged += (_, _) => HotkeyError = string.Empty;
+        HotKeyCloseAll.PropertyChanged += (_, e) =>
+        {
+            HotkeyError = string.Empty;
+            if (e.PropertyName == nameof(HotKeyViewModel.IsCapturing))
+                SuspendHotkey?.Invoke(HotKeyCloseAll.IsCapturing);
+        };
     }
 
     partial void OnNewProcessNameChanged(string value) => AddProcessCommand.NotifyCanExecuteChanged();
