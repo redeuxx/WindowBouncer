@@ -92,8 +92,11 @@ internal static class ElevationService
 
             var sids = NonAdminSids();
 
+            // Delete on an ancestor matters because it allows renaming that folder inside its
+            // parent. A drive root has no parent and can't be renamed, so Delete there is moot
+            // (some images, e.g. Windows Sandbox, grant Authenticated Users Modify on C:\).
             for (var d = new DirectoryInfo(appDir).Parent; d is not null; d = d.Parent)
-                if (Grants(d.GetAccessControl(), sids, AncestorWriteRights))
+                if (Grants(d.GetAccessControl(), sids, d.Parent is null ? AncestorWriteRights & ~FileSystemRights.Delete : AncestorWriteRights))
                     return false;
 
             if (Grants(new DirectoryInfo(appDir).GetAccessControl(), sids, AppDirWriteRights))
