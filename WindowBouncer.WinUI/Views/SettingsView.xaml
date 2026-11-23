@@ -97,7 +97,7 @@
                                TextWrapping="Wrap"
                                FontSize="11"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               Text="Click 'Set', then press your desired key combination. At least one modifier (Ctrl, Alt, Shift, or Win) is recommended."/>
+                               Text="Click 'Set', then press your desired key combination. It must include Ctrl, Alt or Win (F13-F24 also work alone)."/>
                 </StackPanel>
 
                 <!-- EXCLUDE -->
