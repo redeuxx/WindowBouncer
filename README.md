@@ -49,7 +49,7 @@ Settings are stored in `%APPDATA%\WindowBouncer\settings.json` and are preserved
 | Start with Windows | Off | Register autostart at login |
 | Run as admin | Off | Launch elevated via a scheduled task (avoids per-launch UAC). Requires an admin-only install folder, so it is unavailable for the default per-user installer |
 | Close All hotkey | (none) | Global hotkey to trigger Close All from any app |
-| Excluded processes | `windowbouncer` | Process names never shown in the list |
+| Excluded processes | (none) | Process names never shown in the list. WindowBouncer's own windows are never listed |
 | Excluded title patterns | (none) | Substring or glob patterns matched against window titles |
 
 ## CLI Flags

@@ -26,14 +26,6 @@ public sealed class SettingsService
 
     private static readonly bool IsElevated = WindowBouncer.Services.ElevationService.IsElevated();
 
-    // These were previously in the default exclude list. Strip them from saved settings on load
-    // so users who never touched their exclude list aren't stuck with stale defaults.
-    private static readonly HashSet<string> _legacyExclusions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "explorer", "shellexperiencehost", "startmenuexperiencehost",
-        "searchhost", "lockapp", "logonui", "windowbouncer"
-    };
-
     public void Load()
     {
         try
@@ -46,7 +38,6 @@ public sealed class SettingsService
 
             var json = File.ReadAllText(SettingsPath);
             Current = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
-            Current.ExcludedProcessNames.RemoveAll(p => _legacyExclusions.Contains(p));
         }
         catch
         {
