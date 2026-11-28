@@ -46,7 +46,8 @@
     <InnoSetupCompiler Condition="'$(InnoSetupCompiler)' == ''">C:\Program Files (x86)\Inno Setup 6\ISCC.exe</InnoSetupCompiler>
   </PropertyGroup>
 
-  <Target Name="GenerateBuildInfo" BeforeTargets="CoreCompile">
+  <!-- Runs before the XAML compiler's first pass, which also compiles the code. -->
+  <Target Name="GenerateBuildInfo" BeforeTargets="BeforeBuild">
     <Exec Command="powershell -NoProfile -NonInteractive -Command &quot;[System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([System.DateTime]::UtcNow, 'Central Standard Time').ToString('yyyy-MM-dd HH:mm')&quot;" ConsoleToMSBuild="true" StandardOutputImportance="low">
       <Output TaskParameter="ConsoleOutput" PropertyName="CstTime" />
     </Exec>
@@ -58,6 +59,11 @@
       File="$(MSBuildThisFileDirectory)Generated\BuildInfo.g.cs"
       Lines="namespace WindowBouncer%3B internal static class BuildInfo { public const string BuildDate = &quot;$(BuildDate)&quot;%3B }"
       Overwrite="true"/>
+    <!-- In a fresh clone the file didn't exist when the default Compile glob was evaluated. -->
+    <ItemGroup>
+      <Compile Remove="Generated\BuildInfo.g.cs" />
+      <Compile Include="Generated\BuildInfo.g.cs" />
+    </ItemGroup>
   </Target>
 
   <Target Name="CreateInstaller" AfterTargets="Publish" Condition="'$(PublishProfile)' == 'Release'">
