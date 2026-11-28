@@ -23,7 +23,7 @@
     <StartupHookSupport>false</StartupHookSupport>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Company>Vernon Wenberg</Company>
     <Product>WindowBouncer</Product>
     <Description>Close all open windows from the system tray or via hotkey.</Description>

@@ -2,7 +2,7 @@
 ; AppVersion is passed via /DAppVersion= by build-installer.ps1 and the MSBuild target.
 ; To build manually: ISCC.exe /DAppVersion=1.2.3 WindowBouncer.iss
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.0.1"
 #endif
 #define AppPublisher "WindowBouncer"
 #define AppURL "https://github.com/redeuxx/WindowBouncer"
