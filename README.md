@@ -24,7 +24,7 @@ WindowBouncer sits in your system tray and gives you a single click (or keypress
 
 ## Installation
 
-Download `WindowBouncer-<version>-setup.exe` from [Releases](https://github.com/redeuxx/WindowBouncer/releases) and run it. No administrator rights required. The installer offers optional desktop shortcut and start-with-Windows entries.
+Download `WindowBouncer-<version>-setup.exe` from [Releases](https://github.com/redeuxx/WindowBouncer/releases) and run it. Setup asks whether to install for you only (no administrator rights needed, installs under `%LOCALAPPDATA%\Programs`) or for all users (installs under Program Files, needs administrator rights, and makes **Run as admin** available). Switching an existing install for your account to all users removes the per-user copy and keeps your settings and Start with Windows. The installer offers optional desktop shortcut and start-with-Windows entries.
 
 Settings are stored in `%APPDATA%\WindowBouncer\settings.json` and are preserved across upgrades and reinstalls.
 
@@ -48,7 +48,7 @@ Settings are stored in `%APPDATA%\WindowBouncer\settings.json` and are preserved
 | Close to tray | On | Closing the main window hides it; use tray → Exit to quit |
 | Start minimized | Off | Launch directly to tray without showing the main window |
 | Start with Windows | Off | Register autostart at login |
-| Run as admin | Off | Launch elevated via a scheduled task (avoids per-launch UAC). Requires an admin-only install folder, so it is unavailable for the default per-user installer |
+| Run as admin | Off | Launch elevated via a scheduled task (avoids per-launch UAC). Requires an admin-only install folder, so it is available only when installed for all users |
 | Close All hotkey | (none) | Global hotkey to trigger Close All from any app |
 | Excluded processes | (none) | Process names never shown in the list. WindowBouncer's own windows are never listed |
 | Excluded title patterns | (none) | Substring or glob patterns matched against window titles |
