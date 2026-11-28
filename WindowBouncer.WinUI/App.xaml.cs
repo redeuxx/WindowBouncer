@@ -226,9 +226,11 @@ public partial class App : Application
 
     private static void ApplyInstallerStartup()
     {
-        if (Settings.Current.StartWithWindows) return;
         Settings.Current.StartWithWindows = true;
-        SettingsViewModel.SetRegistryStartup(true);
+        // Write the Run value even when the setting is already on: it can point at a removed
+        // install folder (moving to an all-users install), or the task it relies on can be gone.
+        if (!Settings.Current.RunAsAdmin || !ElevationService.IsTaskRegistered())
+            SettingsViewModel.SetRegistryStartup(true);
         Settings.Save();
     }
 
