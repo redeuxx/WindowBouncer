@@ -1,5 +1,7 @@
 using System;
 using System.Diagnostics;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Threading;
 using Microsoft.UI.Xaml;
 using WindowBouncer.Hotkeys;
@@ -54,11 +56,16 @@ public partial class App : Application
         bool isNewInstance;
         try
         {
-            _instanceMutex = new Mutex(initiallyOwned: true, mutexName, out isNewInstance);
+            // An elevated token's default DACL grants only Administrators and SYSTEM, which hides
+            // the mutex from the unelevated installer's AppMutex check. Grant the user explicitly.
+            var security = new MutexSecurity();
+            security.AddAccessRule(new MutexAccessRule(WindowsIdentity.GetCurrent().User!,
+                MutexRights.FullControl, AccessControlType.Allow));
+            _instanceMutex = MutexAcl.Create(initiallyOwned: true, mutexName, out isNewInstance, security);
         }
         catch (UnauthorizedAccessException)
         {
-            // An elevated instance created the mutex and its DACL keeps us out: it is running.
+            // An elevated instance holds the mutex and we can't open it: it is running.
             Exit();
             return;
         }
