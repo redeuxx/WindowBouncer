@@ -31,7 +31,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.7.*" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.*" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.*" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.*" />
   </ItemGroup>
