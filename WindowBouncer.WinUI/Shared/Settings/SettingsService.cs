@@ -72,20 +72,40 @@ public sealed class SettingsService
         }
     }
 
+    // Adds a process to the exclude list and saves, unless an existing entry already covers it.
+    public void AddExcludedProcess(string processName)
+    {
+        if (processName.Length == 0 || IsProcessExcluded(processName))
+            return;
+        // Replace the list instead of adding to it: GetWindowsAsync reads it on a worker thread.
+        Current.ExcludedProcessNames = [.. Current.ExcludedProcessNames, EntryFor(processName)];
+        Save();
+    }
+
+    private bool IsProcessExcluded(string processName)
+        => Current.ExcludedProcessNames.Any(e => EntryMatchesProcess(e, processName));
+
+    // The entry that EntryMatchesProcess maps back to processName. A "foo.exe.exe" image has the
+    // process name "foo.exe", which needs one more ".exe" to survive the stripping below.
+    public static string EntryFor(string processName)
+        => processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? processName + ".exe" : processName;
+
+    public static bool EntryMatchesProcess(string entry, string processName)
+    {
+        // Accept "chrome.exe" as typed from Task Manager; process names have no extension.
+        var name = entry.Trim();
+        if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            name = name[..^4];
+        return string.Equals(processName, name, StringComparison.OrdinalIgnoreCase);
+    }
+
     public bool IsExcluded(string processName, string windowTitle)
     {
         if (string.IsNullOrEmpty(processName) && string.IsNullOrEmpty(windowTitle))
             return false;
 
-        foreach (var excluded in Current.ExcludedProcessNames)
-        {
-            // Accept "chrome.exe" as typed from Task Manager; process names have no extension.
-            var name = excluded.Trim();
-            if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                name = name[..^4];
-            if (string.Equals(processName, name, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
+        if (IsProcessExcluded(processName))
+            return true;
 
         foreach (var pattern in Current.ExcludedTitlePatterns)
         {

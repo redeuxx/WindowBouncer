@@ -301,6 +301,17 @@ public partial class App : Application
         win.Activate();
     }
 
+    internal static void ExcludeProcess(string processName)
+    {
+        Settings.AddExcludedProcess(processName);
+        // An open Settings window saves its own copy of the list, which may lack the entry even
+        // when the saved settings have it (removed there but not saved yet). Add it there too so
+        // its Save doesn't drop the exclusion.
+        var list = _settingsWindow?.ViewModel.ExcludedProcessNames;
+        if (list is not null && !list.Any(e => SettingsService.EntryMatchesProcess(e, processName)))
+            list.Add(SettingsService.EntryFor(processName));
+    }
+
     internal static void Shutdown()
     {
         try

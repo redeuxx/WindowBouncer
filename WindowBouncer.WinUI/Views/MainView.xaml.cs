@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
 using WindowBouncer.Services;
 using WindowBouncer.ViewModels;
 
@@ -83,6 +85,34 @@ public sealed partial class MainView : UserControl
             else
                 ViewModel.SelectNoneCommand.Execute(null);
         }
+    }
+
+    // Right-click on a row, or the context menu key / Shift+F10 on the focused row.
+    private void WindowList_ContextRequested(UIElement sender, ContextRequestedEventArgs e)
+    {
+        // Mouse: a text or image inside the row template. Keyboard: the ListViewItem container.
+        var source = e.OriginalSource as FrameworkElement;
+        var row = source is ListViewItem container ? WindowList.ItemFromContainer(container) : source?.DataContext;
+        if (row is not WindowItemViewModel item || string.IsNullOrEmpty(item.ProcessName))
+            return;
+
+        var exclude = new MenuFlyoutItem { Text = $"Exclude \"{item.ProcessName}\"" };
+        ToolTipService.SetToolTip(exclude, "Hide all windows of this app from the list and from Close All. Undo in Settings > Exclude List.");
+        exclude.Click += (_, _) =>
+        {
+            App.ExcludeProcess(item.ProcessName);
+            // While a close is running, its own refresh at the end drops the excluded rows.
+            if (ViewModel.RefreshCommand.CanExecute(null))
+                ViewModel.RefreshCommand.Execute(null);
+        };
+
+        var flyout = new MenuFlyout();
+        flyout.Items.Add(exclude);
+        if (e.TryGetPosition(sender, out var point))
+            flyout.ShowAt(sender, new FlyoutShowOptions { Position = point });
+        else
+            flyout.ShowAt((FrameworkElement)e.OriginalSource);
+        e.Handled = true;
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e) => App.ShowSettings();

@@ -140,7 +140,8 @@
                   x:Name="WindowList"
                   ItemsSource="{x:Bind ViewModel.FilteredWindows, Mode=OneWay}"
                   SelectionMode="Single"
-                  IsItemClickEnabled="False">
+                  IsItemClickEnabled="False"
+                  ContextRequested="WindowList_ContextRequested">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <Setter Property="Padding" Value="0"/>

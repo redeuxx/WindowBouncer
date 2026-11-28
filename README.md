@@ -36,6 +36,7 @@ Settings are stored in `%APPDATA%\WindowBouncer\settings.json` and are preserved
 | Close all windows | Tray menu → **Close All Windows**, or configured hotkey |
 | Close selected windows | Check rows in the list → **Close Selected** |
 | Close one window | Click the **×** button on any row |
+| Exclude an app | Right-click a row (or press Shift+F10 on it) → **Exclude "&lt;process&gt;"**. Undo in **Settings** → **Exclude List** |
 | Configure settings | Tray menu → **Settings**, or main window toolbar → **Settings** |
 | Refresh the window list | Toolbar → **Refresh**, or reopen the main window |
 
